@@ -71,6 +71,8 @@ export const GameScreen = ({ mode, onExit }: GameScreenProps) => {
   const [targetColor, setTargetColor] = useState("");
   const [caught, setCaught] = useState(0);
   const [showLevelComplete, setShowLevelComplete] = useState(false);
+  const spawnedCorrectCount = useRef(0);
+  const spawnedTotalCount = useRef(0);
 
   const generateInstruction = useCallback((type: ObjectType, level: number) => {
     switch (type) {
@@ -106,7 +108,34 @@ export const GameScreen = ({ mode, onExit }: GameScreenProps) => {
 
   const spawnObject = useCallback(() => {
     const data = getObjectData(currentObjectType);
-    const randomItem = data[Math.floor(Math.random() * data.length)];
+    
+    // Ensure at least 40% of spawned objects are correct
+    const correctRatio = spawnedTotalCount.current > 0 
+      ? spawnedCorrectCount.current / spawnedTotalCount.current 
+      : 0.5;
+    
+    const shouldSpawnCorrect = correctRatio < 0.4 || Math.random() > 0.5;
+    
+    let randomItem;
+    if (shouldSpawnCorrect) {
+      // Spawn a correct object
+      const correctItems = data.filter(item => item.color === targetColor);
+      randomItem = correctItems.length > 0 
+        ? correctItems[Math.floor(Math.random() * correctItems.length)]
+        : data[Math.floor(Math.random() * data.length)];
+      
+      if (randomItem.color === targetColor) {
+        spawnedCorrectCount.current++;
+      }
+    } else {
+      // Spawn random object (might be correct or wrong)
+      randomItem = data[Math.floor(Math.random() * data.length)];
+      if (randomItem.color === targetColor) {
+        spawnedCorrectCount.current++;
+      }
+    }
+    
+    spawnedTotalCount.current++;
     
     const newObject: GameObject = {
       id: Math.random().toString(36).substr(2, 9),
@@ -120,7 +149,7 @@ export const GameScreen = ({ mode, onExit }: GameScreenProps) => {
     };
 
     setObjects(prev => [...prev, newObject]);
-  }, [currentObjectType, level, getObjectData]);
+  }, [currentObjectType, level, getObjectData, targetColor]);
 
   const startLevel = useCallback(() => {
     const types: ObjectType[] = ["fruit", "number", "letter", "shape"];
@@ -132,6 +161,8 @@ export const GameScreen = ({ mode, onExit }: GameScreenProps) => {
     setCaught(0);
     setObjects([]);
     setShowLevelComplete(false);
+    spawnedCorrectCount.current = 0;
+    spawnedTotalCount.current = 0;
   }, [level, generateInstruction]);
 
   useEffect(() => {
@@ -159,11 +190,16 @@ export const GameScreen = ({ mode, onExit }: GameScreenProps) => {
   }, [timeLeft]);
   
   useEffect(() => {
+    // Spawn more frequently in timed mode to ensure enough correct objects
+    const spawnInterval = mode === "timed" 
+      ? Math.max(1000 - level * 50, 500) // Faster spawn in timed mode (500ms - 1000ms)
+      : Math.max(2000 - level * 100, 1000); // Normal spawn in untimed mode
+    
     const interval = setInterval(() => {
       if (!showLevelComplete && (mode === "untimed" || timeLeftRef.current > 0)) {
         spawnObject();
       }
-    }, 2000 - level * 100);
+    }, spawnInterval);
 
     return () => clearInterval(interval);
   }, [spawnObject, showLevelComplete, mode, level]);
