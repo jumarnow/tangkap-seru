@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { FloatingObject } from "./FloatingObject";
 import { GameHUD } from "./GameHUD";
 import { LevelComplete } from "./LevelComplete";
@@ -64,6 +64,7 @@ export const GameScreen = ({ mode, onExit }: GameScreenProps) => {
   const [level, setLevel] = useState(1);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(mode === "timed" ? GAME_DURATION : 0);
+  const timeLeftRef = useRef(timeLeft);
   const [objects, setObjects] = useState<GameObject[]>([]);
   const [currentObjectType, setCurrentObjectType] = useState<ObjectType>("fruit");
   const [targetInstruction, setTargetInstruction] = useState("");
@@ -151,16 +152,21 @@ export const GameScreen = ({ mode, onExit }: GameScreenProps) => {
       return () => clearInterval(timer);
     }
   }, [mode, timeLeft]);
-
+  
+  // Keep latest timeLeft in a ref to avoid resetting spawn interval each second
+  useEffect(() => {
+    timeLeftRef.current = timeLeft;
+  }, [timeLeft]);
+  
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!showLevelComplete && (mode === "untimed" || timeLeft > 0)) {
+      if (!showLevelComplete && (mode === "untimed" || timeLeftRef.current > 0)) {
         spawnObject();
       }
     }, 2000 - level * 100);
 
     return () => clearInterval(interval);
-  }, [spawnObject, showLevelComplete, mode, timeLeft, level]);
+  }, [spawnObject, showLevelComplete, mode, level]);
 
   const handleCatch = useCallback((object: GameObject) => {
     const isCorrect = object.color === targetColor;
