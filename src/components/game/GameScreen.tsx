@@ -30,8 +30,13 @@ interface GameScreenProps {
   onExit: () => void;
 }
 
-const GAME_DURATION = 60; // seconds for timed mode
+const GAME_DURATION = 60; // base seconds for timed mode level 1
+const MIN_GAME_DURATION = 20;
+const GAME_DURATION_STEP = 5;
 const OBJECTS_PER_LEVEL = 10;
+
+const getDurationForLevel = (level: number) =>
+  Math.max(MIN_GAME_DURATION, GAME_DURATION - (level - 1) * GAME_DURATION_STEP);
 
 const fruitData = [
   { emoji: "🍎", value: "apel", color: "red" },
@@ -68,7 +73,7 @@ const shapeData = [
 export const GameScreen = ({ mode, onExit }: GameScreenProps) => {
   const [level, setLevel] = useState(1);
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(mode === "timed" ? GAME_DURATION : 0);
+  const [timeLeft, setTimeLeft] = useState(mode === "timed" ? getDurationForLevel(1) : 0);
   const timeLeftRef = useRef(timeLeft);
   const [objects, setObjects] = useState<GameObject[]>([]);
   const [currentObjectType, setCurrentObjectType] = useState<ObjectType>("fruit");
@@ -214,8 +219,9 @@ export const GameScreen = ({ mode, onExit }: GameScreenProps) => {
       setObjects([]);
       setShowLevelComplete(false);
 
-      setTimeLeft(GAME_DURATION);
-      timeLeftRef.current = GAME_DURATION;
+      const initialDuration = getDurationForLevel(1);
+      setTimeLeft(initialDuration);
+      timeLeftRef.current = initialDuration;
       hasRecordedScoreRef.current = false;
       lastRecordedEntryIdRef.current = null;
 
@@ -308,10 +314,15 @@ export const GameScreen = ({ mode, onExit }: GameScreenProps) => {
   }, []);
 
   const handleNextLevel = () => {
-    setLevel(prev => prev + 1);
-    if (mode === "timed") {
-      setTimeLeft(GAME_DURATION);
-    }
+    setLevel(prev => {
+      const nextLevel = prev + 1;
+      if (mode === "timed") {
+        const nextDuration = getDurationForLevel(nextLevel);
+        setTimeLeft(nextDuration);
+        timeLeftRef.current = nextDuration;
+      }
+      return nextLevel;
+    });
   };
 
   if (mode === "timed" && timeLeft === 0) {
