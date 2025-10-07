@@ -5,6 +5,8 @@ import { LevelComplete } from "./LevelComplete";
 import { Button } from "@/components/ui/button";
 import { Home } from "lucide-react";
 import { toast } from "sonner";
+import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
 
 export type ObjectType = "fruit" | "number" | "letter" | "shape";
 export type GameMode = "timed" | "untimed";
@@ -73,6 +75,13 @@ export const GameScreen = ({ mode, onExit }: GameScreenProps) => {
   const [showLevelComplete, setShowLevelComplete] = useState(false);
   const spawnedCorrectCount = useRef(0);
   const spawnedTotalCount = useRef(0);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const toggleSound = useCallback(() => {
+    setSoundEnabled(prev => !prev);
+  }, []);
+
+  useBackgroundMusic(soundEnabled);
+  const { playSuccess, playError } = useSoundEffects(soundEnabled);
 
   const generateInstruction = useCallback((type: ObjectType, level: number) => {
     switch (type) {
@@ -208,6 +217,7 @@ export const GameScreen = ({ mode, onExit }: GameScreenProps) => {
     const isCorrect = object.color === targetColor;
     
     if (isCorrect) {
+      playSuccess();
       setScore(prev => prev + 10);
       setCaught(prev => {
         const newCaught = prev + 1;
@@ -220,10 +230,11 @@ export const GameScreen = ({ mode, onExit }: GameScreenProps) => {
       toast.success("Benar! +10");
     } else {
       toast.error("Salah!");
+      playError();
     }
 
     setObjects(prev => prev.filter(obj => obj.id !== object.id));
-  }, [targetColor]);
+  }, [targetColor, playSuccess, playError]);
 
   const handleMiss = useCallback((id: string) => {
     setObjects(prev => prev.filter(obj => obj.id !== id));
@@ -260,6 +271,8 @@ export const GameScreen = ({ mode, onExit }: GameScreenProps) => {
         instruction={targetInstruction}
         caught={caught}
         total={OBJECTS_PER_LEVEL}
+        soundEnabled={soundEnabled}
+        onToggleSound={toggleSound}
       />
 
       <Button
