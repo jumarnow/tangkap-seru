@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { GameObject } from "./GameScreen";
 
 interface FloatingObjectProps {
@@ -10,13 +10,15 @@ interface FloatingObjectProps {
 export const FloatingObject = ({ object, onCatch, onMiss }: FloatingObjectProps) => {
   const [position, setPosition] = useState({ x: object.x, y: object.y });
   const [isVisible, setIsVisible] = useState(true);
+  const hasMissed = useRef(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setPosition(prev => {
         const newY = prev.y + object.speed;
-        if (newY > 110) {
-          onMiss(object.id);
+        if (newY > 110 && !hasMissed.current) {
+          hasMissed.current = true;
+          setTimeout(() => onMiss(object.id), 0);
           return prev;
         }
         return { ...prev, y: newY };
